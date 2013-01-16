@@ -20,12 +20,8 @@ CACHE_DIR=$2
 CACHED_DIRS=".heroku"
 
 # Static configurations for virtualenv caches.
-LEGACY_VIRTUALENV_LOC="."
 VIRTUALENV_LOC=".heroku/venv"
-MODERN_VIRTUALENV_LOC=".heroku/venv"
 LEGACY_TRIGGER="lib/python2.7"
-LEGACY_VIRTUALENV_TRIGGER="lib/python2.7"
-LEGACY_VIRTUALENV_DIRS="bin include lib"
 PROFILE_PATH="$BUILD_DIR/.profile.d/python.sh"
 
 # Python version. This will be used in the future to specify custom Pythons.
@@ -63,24 +59,6 @@ export LANG=en_US.UTF-8
 export LIBRARY_PATH=/app/.heroku/vendor/lib
 export LD_LIBRARY_PATH=/app/.heroku/vendor/lib
 
-# Syntax sugar.
-indent() {
-  RE="s/^/       /"
-  [ $(uname) == "Darwin" ] && sed -l "$RE" || sed -u "$RE"
-}
-
-function virtualenv (){
-  python "$ROOT_DIR/vendor/virtualenv-1.7/virtualenv.py" "$@"
-}
-
-function puts-step (){
-  echo "-----> $@"
-}
-
-function puts-warn (){
-  echo " !     $@"
-}
-
 # Switch to the repo's context.
 cd $BUILD_DIR
 
@@ -101,28 +79,6 @@ fi
 
 # ### The Cache
 mkdir -p $CACHE_DIR
-
-# Nice defaults.
-LEGACY_VIRTUALENV=false
-VIRTUALENV_LOC=$MODERN_VIRTUALENV_LOC
-
-# Support "old-style" virtualenvs.
-if [ -d $CACHE_DIR/$LEGACY_VIRTUALENV_TRIGGER ]; then
-  LEGACY_VIRTUALENV=true
-  VIRTUALENV_LOC=$LEGACY_VIRTUALENV_LOC
-  CACHED_DIRS=$LEGACY_VIRTUALENV_DIRS
-
-  # Warn for a checked-in virtualenv.
-  if [ -d "lib" ] || [ -d "bin" ]; then
-    puts-warn "You have a virtualenv checked in. You should ignore the appropriate paths in your repo. See http://devcenter.heroku.com/articles/gitignore for more info.";
-  fi
-
-  # Reject a conflicting checked-in virtualenv.
-  if [ -f "lib/python2.7" ]; then
-    puts-warn "Checked-in virtualenv conflict."
-    exit 1;
-  fi
-fi
 
 # Purge "old-style" virtualenvs.
 [ -d $CACHE_DIR/$LEGACY_TRIGGER ] && rm -fr $CACHE_DIR/.heroku/bin $CACHE_DIR/.heroku/lib $CACHE_DIR/.heroku/include
@@ -206,48 +162,11 @@ else
   puts-step "Using Python runtime ($PYTHON_VERSION)"
 fi
 
-# Try to create the virtualenv.
-OUT=$(virtualenv --python $PYTHON_EXE --distribute --never-download --prompt='(venv) ' $VIRTUALENV_LOC 2>&1)
-
-[ $? -ne 0 -o -n "$CLEAN_VIRTUALENV" ] && {
-  if [ -n "$CLEAN_VIRTUALENV" ]
-    then echo " !     CLEAN_VIRTUALENV set, rebuilding virtualenv."
-    else echo " !     Virtualenv corrupt, rebuilding."
-  fi
-  # If the virtualenv is old-style, the new one won't be
-  if $LEGACY_VIRTUALENV; then
-    # Remove old artifacts in cache.
-    for dir in $CACHED_DIRS; do
-      rm -rf $CACHE_DIR/$dir
-    done
-    VIRTUALENV_DIRS=$LEGACY_VIRTUALENV_DIRS
-    VIRTUALENV_LOC=$MODERN_VIRTUALENV_LOC
-    CACHED_DIRS=".heroku"
-    LEGACY_VIRTUALENV=false
-  else
-    VIRTUALENV_DIRS=$MODERN_VIRTUALENV_LOC
-  fi
-  VIRTUALENV_SRC_DIR=$MODERN_VIRTUALENV_LOC/../src
-  if [ -d "$VIRTUALENV_SRC_DIR" ]; then
-    echo " !     DELETING $VIRTUALENV_SRC_DIR"
-    rm -fr "$VIRTUALENV_SRC_DIR" &> /dev/null || true
-  fi
-  for dir in $VIRTUALENV_DIRS; do
-    rm -fr $dir &> /dev/null || true
-  done
-  OUT=$(virtualenv --python $PYTHON_EXE --distribute --never-download  --prompt='(venv) ' $VIRTUALENV_LOC )
-}
-echo "$OUT" | indent
-
 set -e
 
 # Pylibmc support.
 # See [`bin/steps/pylibmc`](pylibmc.html).
 source $BIN_DIR/steps/pylibmc
-
-# Activate the Virtualenv.
-puts-step "Activating virtualenv"
-source $VIRTUALENV_LOC/bin/activate
 
 # Install Mercurial if it appears to be required.
 if (grep -Fiq "hg+" requirements.txt) then
@@ -260,16 +179,6 @@ pip install --use-mirrors -r requirements.txt --exists-action=w --src=./.heroku/
 
 # Django collectstatic support.
 source $BIN_DIR/steps/collectstatic
-
-# Make Virtualenv's paths relative for portability.
-set +e
-OUT=$(virtualenv --python $PYTHON_EXE  --relocatable $VIRTUALENV_LOC)
-[ $? -ne 0 ] && {
-  puts-warn "Error making virtualenv relocatable"
-  echo "$OUT" | indent
-  exit 1
-}
-set -e
 
 # ### Finalize
 #
