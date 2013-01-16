@@ -1,1 +1,2 @@
+virtualenv=1.7
 requests
