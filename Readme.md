@@ -29,6 +29,15 @@ Example usage:
            Downloading/unpacking Jinja2>=2.4 (from Flask==0.7.2->-r requirements.txt (line 1))
            Installing collected packages: Flask, Werkzeug, Jinja2
            Successfully installed Flask Werkzeug Jinja2
+    -----> Fetching and installing GEOS 3.3.2
+    -----> Installing ...
+           GEOS installed
+    -----> Fetching and installing Proj.4 4.7.0
+    -----> Installing ...
+           Proj.4 installed
+    -----> Fetching and installing GDAL 1.8.1
+    -----> Installing ...
+           GDAL installed
            Cleaning up...
 
 You can also add it to upcoming builds of an existing application:
@@ -52,3 +61,9 @@ Runtime options include:
 - python-2.7.3
 - python-3.3.0
 - pypy-1.9 (experimental)
+
+IMPORTANT: You will need to set two Django settings in order for GEOS and GDAL to work properly!
+
+GEOS_LIBRARY_PATH = '/app/.geodjango/geos/lib/libgeos_c.so'
+
+GDAL_LIBRARY_PATH = '/app/.geodjango/gdal/lib/libgdal.so'
