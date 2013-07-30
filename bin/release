@@ -27,6 +27,6 @@ if [[ $MANAGE_FILE ]]; then
 cat <<EOF
 
 addons:
-  shared-database:5mb
+  heroku-postgresql:dev
 EOF
 fi
